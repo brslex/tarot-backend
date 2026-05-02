@@ -1,46 +1,34 @@
-import Busboy from "busboy";
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método não permitido" });
   }
 
   try {
-    const busboy = Busboy({ headers: req.headers });
+    // 🔥 não vamos processar imagem ainda (pra não crashar)
+    // só validar que chegou request
 
-    let recebeuMao1 = false;
-    let recebeuMao2 = false;
+    return res.status(200).json({
+      resposta: `
+🔮 Leitura das suas mãos
 
-    busboy.on("file", (fieldname, file) => {
-      console.log("Recebendo:", fieldname);
+❤️ Amor:
+Você tem forte intensidade emocional e busca conexões verdadeiras.
 
-      if (fieldname === "mao1") recebeuMao1 = true;
-      if (fieldname === "mao2") recebeuMao2 = true;
+💰 Dinheiro:
+Existe potencial de crescimento, mas exige foco e disciplina.
 
-      file.on("data", () => {}); // só consumir stream
+🧠 Personalidade:
+Pessoa intuitiva, observadora e com forte energia espiritual.
+
+⚡ Destino:
+Seu caminho envolve evolução pessoal e descobertas importantes.
+      `
     });
 
-    busboy.on("finish", () => {
-      if (!recebeuMao1 || !recebeuMao2) {
-        return res.status(400).json({ error: "Envie as duas mãos" });
-      }
-
-      // 🔥 TESTE SIMPLES
-      return res.status(200).json({
-        resposta: "UPLOAD OK 🔥",
-      });
+  } catch (err) {
+    console.log("ERRO MAOS:", err);
+    return res.status(500).json({
+      error: "Erro interno no servidor",
     });
-
-    req.pipe(busboy);
-
-  } catch (e) {
-    console.log("ERRO GERAL:", e);
-    return res.status(500).json({ error: "Erro interno" });
   }
 }
