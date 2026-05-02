@@ -8,129 +8,111 @@ export default async function handler(req, res) {
 
     // ================= MAOS =================
     if (tipo === "maos") {
-      return res.status(200).json({
-        resposta: `
-🔮 Leitura das suas mãos
 
-❤️ Amor:
-Você demonstra intensidade emocional e busca conexões profundas.
+      const prompt = `
+Você é um especialista em leitura de mãos (quiromancia).
 
-💰 Dinheiro:
-Existe potencial de crescimento financeiro, mas exige disciplina.
+Faça uma leitura completa e mística dividida em:
 
-🧠 Personalidade:
-Pessoa intuitiva, observadora e espiritual.
+❤️ Amor
+💰 Dinheiro
+🧠 Personalidade
+⚡ Destino
 
-⚡ Destino:
-Seu caminho está ligado à evolução pessoal e descobertas importantes.
-        `
-      });
-    }
-
-    // ================= TAROT =================
-    if (!pergunta || !cartas || cartas.length === 0) {
-      return res.status(400).json({
-        error: "Dados inválidos",
-      });
-    }
-
-    let systemPrompt = "";
-    let userPrompt = "";
-
-    // ===== 1 CARTA =====
-    if (tipo === "free") {
-
-      systemPrompt = `
-Você é um tarólogo experiente.
-
-Regras:
-- Explique o significado da carta
-- Relacione com a pergunta
-- Seja direto e claro
-- Linguagem mística, mas simples
-
-Estrutura:
-
-🔮 SIGNIFICADO:
-Explique a carta
-
-✨ CONSELHO:
-Dê um conselho curto e direto
-
+Seja envolvente, espiritual e direto.
 Nunca diga que é uma IA.
 `;
 
-      userPrompt = `
-Pergunta: ${pergunta}
-
-Carta tirada: ${cartas[0]}
-`;
-
-    }
-
-    // ===== 3 CARTAS =====
-    else {
-
-      if (cartas.length < 3) {
-        return res.status(400).json({
-          error: "Para leitura completa são necessárias 3 cartas",
-        });
-      }
-
-      systemPrompt = `
-Você é um tarólogo profissional extremamente experiente.
-
-Estrutura obrigatória:
-
-🔮 PASSADO:
-Explique a primeira carta
-
-🔮 PRESENTE:
-Explique a segunda carta
-
-🔮 FUTURO:
-Explique a terceira carta
-
-✨ CONSELHO FINAL:
-Dê uma orientação forte
-`;
-
-      userPrompt = `
-Pergunta: ${pergunta}
-
-Cartas:
-1: ${cartas[0]}
-2: ${cartas[1]}
-3: ${cartas[2]}
-`;
-    }
-
-    // ================= CHAMADA IA =================
-
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openrouter/free",
+          model: "meta-llama/llama-3.2-3b-instruct:free",
           messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
+            { role: "system", content: prompt },
+            { role: "user", content: "Faça a leitura." }
           ]
         }),
+      });
+
+      const data = await response.json();
+
+      // 🔥 fallback (ESSENCIAL)
+      if (!data.choices || !data.choices[0]) {
+        console.log("ERRO MAOS:", data);
+
+        return res.status(200).json({
+          resposta: "🔮 Energia instável... tente novamente."
+        });
       }
-    );
+
+      return res.status(200).json({
+        resposta: data.choices[0].message.content,
+      });
+    }
+
+    // ================= TAROT =================
+    if (!pergunta || !cartas || cartas.length === 0) {
+      return res.status(400).json({ error: "Dados inválidos" });
+    }
+
+    let systemPrompt = "";
+    let userPrompt = "";
+
+    if (tipo === "free") {
+      systemPrompt = `
+Você é um tarólogo experiente.
+
+Explique a carta, conecte com a pergunta e dê um conselho.
+
+Nunca diga que é uma IA.
+`;
+
+      userPrompt = `
+Pergunta: ${pergunta}
+Carta: ${cartas[0]}
+`;
+    } else {
+      systemPrompt = `
+Você é um tarólogo profissional.
+
+Faça leitura completa de passado, presente e futuro.
+
+Nunca diga que é uma IA.
+`;
+
+      userPrompt = `
+Pergunta: ${pergunta}
+Cartas: ${cartas.join(", ")}
+`;
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-3.2-3b-instruct:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      }),
+    });
 
     const data = await response.json();
 
+    // 🔥 fallback geral
     if (!data.choices || !data.choices[0]) {
-      console.log("ERRO IA:", data);
-      return res.status(500).json({
-        error: "Erro na resposta da IA",
+      console.log("ERRO TAROT:", data);
+
+      return res.status(200).json({
+        resposta: "🔮 As cartas estão confusas... tente novamente."
       });
     }
 
@@ -140,8 +122,9 @@ Cartas:
 
   } catch (err) {
     console.log("ERRO GERAL:", err);
-    return res.status(500).json({
-      error: "Erro interno no servidor",
+
+    return res.status(200).json({
+      resposta: "🔮 Energia instável... tente novamente."
     });
   }
 }
