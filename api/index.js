@@ -4,17 +4,97 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { pergunta, cartas, tipo } = req.body;
+    const { pergunta, cartas, tipo, imagem, imagem1, imagem2 } = req.body;
 
     // ================= MAOS =================
     if (tipo === "maos") {
-      return res.status(200).json({
-        resposta: `🔮 Leitura das suas mãos
 
-❤️ Amor: Você demonstra intensidade emocional e busca conexões profundas.
-💰 Dinheiro: Existe potencial de crescimento financeiro, mas exige disciplina.
-🧠 Personalidade: Pessoa intuitiva, observadora e espiritual.
-⚡ Destino: Seu caminho está ligado à evolução pessoal e descobertas importantes.`
+      // aceita 1 ou 2 imagens
+      const imagens = [];
+
+      if (imagem) {
+        imagens.push({
+          type: "image_url",
+          image_url: { url: imagem }
+        });
+      }
+
+      if (imagem1) {
+        imagens.push({
+          type: "image_url",
+          image_url: { url: imagem1 }
+        });
+      }
+
+      if (imagem2) {
+        imagens.push({
+          type: "image_url",
+          image_url: { url: imagem2 }
+        });
+      }
+
+      if (imagens.length === 0) {
+        return res.status(400).json({
+          resposta: "Envie pelo menos uma imagem da mão."
+        });
+      }
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+          messages: [
+            {
+              role: "system",
+              content: `
+Você é um especialista em leitura de mãos (quiromancia).
+
+Analise a(s) imagem(ns) da mão enviada(s) e faça uma leitura completa dividida em:
+
+❤️ Amor  
+💰 Dinheiro  
+🧠 Personalidade  
+⚡ Destino  
+
+Se duas mãos forem enviadas:
+- Compare as duas
+- Aponte diferenças
+- Diga o que isso revela sobre a pessoa
+
+Seja místico, direto e envolvente.
+Nunca diga que é uma IA.
+`
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Faça a leitura desta(s) mão(s)."
+                },
+                ...imagens
+              ]
+            }
+          ]
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.choices || !data.choices[0]) {
+        console.log("ERRO MAOS:", data);
+
+        return res.status(200).json({
+          resposta: "🔮 Não consegui ler a mão... tente outra foto."
+        });
+      }
+
+      return res.status(200).json({
+        resposta: data.choices[0].message.content,
       });
     }
 
