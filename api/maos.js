@@ -1,43 +1,46 @@
-Future<void> enviarParaIA() async {
-  if (mao1 == null || mao2 == null) return;
+import Busboy from "busboy";
 
-  setState(() {
-    loading = true;
-    resposta = "";
-  });
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método não permitido" });
+  }
 
   try {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://tarot-backend-psi.vercel.app/api/maos'),
-    );
+    const busboy = Busboy({ headers: req.headers });
 
-    request.files.add(await http.MultipartFile.fromPath('mao1', mao1!.path));
-    request.files.add(await http.MultipartFile.fromPath('mao2', mao2!.path));
+    let recebeuMao1 = false;
+    let recebeuMao2 = false;
 
-    print("ENVIANDO PRA API...");
+    busboy.on("file", (fieldname, file) => {
+      console.log("Recebendo:", fieldname);
 
-    var response = await request.send().timeout(Duration(seconds: 20));
+      if (fieldname === "mao1") recebeuMao1 = true;
+      if (fieldname === "mao2") recebeuMao2 = true;
 
-    print("STATUS: ${response.statusCode}");
-
-    var respStr = await response.stream.bytesToString();
-
-    print("RESPOSTA: $respStr");
-
-    final data = jsonDecode(respStr);
-
-    setState(() {
-      resposta = data["resposta"] ?? "Erro ao gerar leitura";
-      loading = false;
+      file.on("data", () => {}); // só consumir stream
     });
+
+    busboy.on("finish", () => {
+      if (!recebeuMao1 || !recebeuMao2) {
+        return res.status(400).json({ error: "Envie as duas mãos" });
+      }
+
+      // 🔥 TESTE SIMPLES
+      return res.status(200).json({
+        resposta: "UPLOAD OK 🔥",
+      });
+    });
+
+    req.pipe(busboy);
 
   } catch (e) {
-    print("ERRO: $e");
-
-    setState(() {
-      resposta = "Erro ao conectar com servidor";
-      loading = false;
-    });
+    console.log("ERRO GERAL:", e);
+    return res.status(500).json({ error: "Erro interno" });
   }
 }
