@@ -6,7 +6,28 @@ export default async function handler(req, res) {
   try {
     const { pergunta, cartas, tipo } = req.body;
 
-    // validação básica
+    // ================= MAOS =================
+    if (tipo === "maos") {
+      return res.status(200).json({
+        resposta: `
+🔮 Leitura das suas mãos
+
+❤️ Amor:
+Você demonstra intensidade emocional e busca conexões profundas.
+
+💰 Dinheiro:
+Existe potencial de crescimento financeiro, mas exige disciplina.
+
+🧠 Personalidade:
+Pessoa intuitiva, observadora e espiritual.
+
+⚡ Destino:
+Seu caminho está ligado à evolução pessoal e descobertas importantes.
+        `
+      });
+    }
+
+    // ================= TAROT =================
     if (!pergunta || !cartas || cartas.length === 0) {
       return res.status(400).json({
         error: "Dados inválidos",
@@ -16,7 +37,7 @@ export default async function handler(req, res) {
     let systemPrompt = "";
     let userPrompt = "";
 
-    // ================= FREE (1 CARTA) =================
+    // ===== 1 CARTA =====
     if (tipo === "free") {
 
       systemPrompt = `
@@ -43,13 +64,11 @@ Nunca diga que é uma IA.
 Pergunta: ${pergunta}
 
 Carta tirada: ${cartas[0]}
-
-Faça uma leitura simples.
 `;
 
     }
 
-    // ================= PREMIUM (3 CARTAS) =================
+    // ===== 3 CARTAS =====
     else {
 
       if (cartas.length < 3) {
@@ -60,13 +79,6 @@ Faça uma leitura simples.
 
       systemPrompt = `
 Você é um tarólogo profissional extremamente experiente.
-
-Regras:
-- Interprete profundamente cada carta
-- Conecte as cartas entre si
-- Seja direto e claro
-- Linguagem mística, porém compreensível
-- Traga orientação real para a vida
 
 Estrutura obrigatória:
 
@@ -80,22 +92,17 @@ Explique a segunda carta
 Explique a terceira carta
 
 ✨ CONSELHO FINAL:
-Dê uma orientação forte e prática
-
-Nunca diga que é uma IA.
+Dê uma orientação forte
 `;
 
       userPrompt = `
 Pergunta: ${pergunta}
 
-Cartas tiradas:
-1ª (Passado): ${cartas[0]}
-2ª (Presente): ${cartas[1]}
-3ª (Futuro): ${cartas[2]}
-
-Faça uma leitura completa e profunda.
+Cartas:
+1: ${cartas[0]}
+2: ${cartas[1]}
+3: ${cartas[2]}
 `;
-
     }
 
     // ================= CHAMADA IA =================
@@ -111,14 +118,8 @@ Faça uma leitura completa e profunda.
         body: JSON.stringify({
           model: "openrouter/free",
           messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: userPrompt,
-            }
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
           ]
         }),
       }
@@ -127,7 +128,7 @@ Faça uma leitura completa e profunda.
     const data = await response.json();
 
     if (!data.choices || !data.choices[0]) {
-      console.log("ERRO IA:", data); // debug no vercel
+      console.log("ERRO IA:", data);
       return res.status(500).json({
         error: "Erro na resposta da IA",
       });
